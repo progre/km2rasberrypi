@@ -1,0 +1,7 @@
+[build]
+default-target = "aarch64-unknown-linux-gnu"
+
+[target.aarch64-unknown-linux-gnu]
+pre-build = [
+  "dpkg --add-architecture arm64 && apt-get update && apt-get install --assume-yes --no-install-recommends libfluidsynth-dev:$CROSS_DEB_ARCH",
+]

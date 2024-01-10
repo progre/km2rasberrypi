@@ -1,0 +1,56 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "cross build --release",
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "debug build",
+      "type": "shell",
+      "command": "cross build",
+      "problemMatcher": [
+        "$rustc"
+      ],
+      "group": {
+        "kind": "build"
+      }
+    },
+    {
+      "label": "run",
+      "type": "shell",
+      "command": "scripts/run.ps1 -projectName ${workspaceFolderBasename} -remoteHost x.x.x.x",
+      "dependsOn": "debug build",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "options": {
+        "shell": {
+          "executable": "powershell"
+        }
+      }
+    },
+    {
+      "label": "deploy",
+      "type": "shell",
+      "command": "scripts/deploy.ps1 -projectName ${workspaceFolderBasename} -remoteHost x.x.x.x",
+      "group": {
+        "kind": "none"
+      },
+      "options": {
+        "shell": {
+          "executable": "powershell"
+        }
+      }
+    }
+  ]
+}

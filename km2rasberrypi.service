@@ -1,0 +1,13 @@
+[Unit]
+Description=km2rasberrypi
+After=syslog.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root
+ExecStart=/usr/local/bin/km2rasberrypi
+TimeoutStopSec=5
+StandardOutput=null
+
+[Install]
+WantedBy = multi-user.target

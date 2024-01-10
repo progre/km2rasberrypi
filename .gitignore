@@ -1,0 +1,3 @@
+/.vscode/tasks.json
+/src/bindings_raw.rs
+/target
