@@ -2,11 +2,12 @@ mod bindings;
 mod fluid_synth;
 mod input_manager;
 mod kmctrler;
-mod synthesizer;
+mod settings;
+mod synthctrler;
 
 use fluid_synth::FluidSynth;
 use input_manager::start_inputs;
-use synthesizer::{Event, SynthCtrler};
+use synthctrler::{Event, SynthCtrler};
 
 fn process_event(synth: &FluidSynth, ev: Event) {
     match ev {
