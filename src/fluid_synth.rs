@@ -45,15 +45,14 @@ impl FluidSynth {
         }
     }
 
-    pub fn noteon(&self, chan: u8, key: u16) -> bool {
-        (unsafe { fluid_synth_noteon(self.synth, chan as i32, 60 - 24 * 3 + key as i32, 127) })
-            as u32
+    pub fn noteon(&self, chan: u8, key: u8, vel: u8) -> bool {
+        debug_assert!((1..=127).contains(&vel));
+        (unsafe { fluid_synth_noteon(self.synth, chan as i32, key as i32, vel as i32) }) as u32
             == FLUID_OK
     }
 
-    pub fn noteoff(&self, chan: u8, key: u16) -> bool {
-        (unsafe { fluid_synth_noteoff(self.synth, chan as i32, 60 - 24 * 3 + key as i32) }) as u32
-            == FLUID_OK
+    pub fn noteoff(&self, chan: u8, key: u8) -> bool {
+        (unsafe { fluid_synth_noteoff(self.synth, chan as i32, key as i32) }) as u32 == FLUID_OK
     }
 
     pub fn all_notes_off(&self, chan: u8) -> bool {

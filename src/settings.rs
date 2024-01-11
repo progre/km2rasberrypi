@@ -37,12 +37,14 @@ fn put(doc: &mut Table, key: &str, value: impl Into<Value>) {
     }
 }
 
-#[derive(Clone, CopyGetters, Setters)]
+#[derive(Clone, CopyGetters, Getters, MutGetters, Setters)]
 pub struct KeyboardSettings {
     #[getset(get_copy = "pub", set = "pub")]
     octave: u8,
     #[getset(get_copy = "pub", set = "pub")]
     program_no: u8,
+    #[getset(get = "pub", get_mut = "pub")]
+    velocity_per_program: [u8; 128],
     #[getset(get_copy = "pub", set = "pub")]
     reverb: bool,
     #[getset(get_copy = "pub", set = "pub")]
@@ -54,6 +56,7 @@ impl Default for KeyboardSettings {
         Self {
             octave: 5,
             program_no: 0,
+            velocity_per_program: [100; 128],
             reverb: false,
             chorus: false,
         }
@@ -97,6 +100,7 @@ impl SynthesizerSettings {
                 .map(|item| KeyboardSettings {
                     octave: integer(item, "octave").unwrap_or(5) as u8,
                     program_no: integer(item, "program_no").unwrap_or(0) as u8,
+                    velocity_per_program: [100; 128],
                     reverb: bool(item, "reverb").unwrap_or(false),
                     chorus: bool(item, "chorus").unwrap_or(false),
                 })
