@@ -61,8 +61,8 @@ pub struct SynthCtrler {
     rx: mpsc::Receiver<(usize, kmctrler::Event)>,
     settings: SynthesizerSettings,
     mode_config: bool,
-    kmctrler_states: HashMap<usize, kmctrler::State>,
-    keydown_octave_table: [u8; 24],
+    kmctrler_states: HashMap<u8, kmctrler::State>,
+    keydown_octave_table: HashMap<u8, [u8; 24]>,
     event_queue: Vec<Event>,
 }
 
@@ -76,7 +76,7 @@ impl SynthCtrler {
             settings,
             mode_config: false,
             kmctrler_states: HashMap::new(),
-            keydown_octave_table: [0; 24],
+            keydown_octave_table: HashMap::new(),
             event_queue: Vec::new(),
         }
     }
@@ -147,10 +147,10 @@ impl SynthCtrler {
         }
         loop {
             let (idx, ev) = self.rx.recv()?;
-            let state = self.kmctrler_states.entry(idx).or_default();
+            let chan = idx as u8;
+            let state = self.kmctrler_states.entry(chan).or_default();
             state.update(&ev);
 
-            let chan = idx as u8;
             if state.select() && state.start() {
                 self.mode_config = !self.mode_config;
                 state.reset_select_start();
@@ -243,13 +243,13 @@ impl SynthCtrler {
                 kmctrler::Event::Press(Input::Key(key)) => {
                     let keyboard = self.settings.get_or_create_keyboard(chan);
                     let octave = keyboard.octave();
-                    self.keydown_octave_table[key as usize] = octave;
+                    self.keydown_octave_table.entry(chan).or_default()[key as usize] = octave;
                     let virtual_key = key + octave * 12;
                     let vel = keyboard.velocity_per_program()[keyboard.program_no() as usize];
                     return Ok(Event::Noteon(chan, virtual_key, vel));
                 }
                 kmctrler::Event::Release(Input::Key(key)) => {
-                    let octave = self.keydown_octave_table[key as usize];
+                    let octave = self.keydown_octave_table.entry(chan).or_default()[key as usize];
                     let virtual_key = key + octave * 12;
                     return Ok(Event::Noteoff(chan, virtual_key));
                 }

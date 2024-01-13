@@ -40,12 +40,12 @@ pub fn start_inputs() -> mpsc::Receiver<(usize, Event)> {
                             devices.write().unwrap().remove(&physical_path);
                             return;
                         };
-                        let idx = devices
-                            .read()
-                            .unwrap()
-                            .keys()
-                            .position(|x| x == &physical_path)
-                            .unwrap();
+                        let idx = {
+                            let dev = devices.read().unwrap();
+                            let mut keys: Vec<_> = dev.keys().collect();
+                            keys.sort();
+                            keys.binary_search(&&physical_path).unwrap()
+                        };
                         events
                             .filter_map(|ev| {
                                 let InputEventKind::Key(key) = ev.kind() else {
