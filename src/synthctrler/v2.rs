@@ -111,13 +111,16 @@ impl SynthCtrler {
 
     fn percussion(&mut self, no: i32) -> Event {
         if no == 1 {
-            self.event_queue.push(Event::Noteoff(9, 49));
-            self.event_queue.push(Event::Noteon(9, 49, 127));
+            self.event_queue.push(Event::Noteoff(9, 42));
+            self.event_queue.push(Event::Noteon(9, 42, 127));
+            self.event_queue.push(Event::Noteoff(9, 42));
+            Event::Noteon(9, 42, 127)
+        } else {
+            self.event_queue.push(Event::Noteoff(9, 36));
+            self.event_queue.push(Event::Noteon(9, 36, 127));
+            self.event_queue.push(Event::Noteoff(9, 36));
+            Event::Noteon(9, 36, 127)
         }
-        self.event_queue.push(Event::Noteoff(9, 36));
-        self.event_queue.push(Event::Noteon(9, 36, 127));
-        self.event_queue.push(Event::Noteoff(9, 36));
-        Event::Noteon(9, 36, 127)
     }
 
     fn add_on_sfx(&mut self, chan: u8) {
