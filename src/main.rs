@@ -8,7 +8,7 @@ mod synthctrler;
 use fluid_synth::FluidSynth;
 use input_manager::start_inputs;
 use settings::SynthesizerSettings;
-use synthctrler::{v2::SynthCtrler, Event};
+use synthctrler::{v3::SynthCtrler, Event};
 
 fn process_event(synth: &FluidSynth, ev: Event) {
     match ev {

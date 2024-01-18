@@ -1,5 +1,6 @@
 pub mod v1;
 pub mod v2;
+pub mod v3;
 
 pub enum Event {
     Noteon(u8, u8, u8),
