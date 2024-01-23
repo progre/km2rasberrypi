@@ -7,13 +7,18 @@ use std::{
 
 use crate::{
     kmctrler::{self, Input},
-    settings::SynthesizerSettings,
+    settings::{KeyboardSettings, SynthesizerSettings},
 };
 
 use super::{
     v1::{toggle_chorus, toggle_reverb},
     Event,
 };
+
+fn noteon(chan: u8, virtual_key: u8, keyboard: &KeyboardSettings) -> Event {
+    let vel = keyboard.velocity_per_program()[keyboard.program_no() as usize];
+    Event::Noteon(chan, virtual_key, vel)
+}
 
 fn key_to_program_no(keys: &[bool; 24]) -> u8 {
     keys[5] as u8 * 0b01000000
@@ -64,19 +69,11 @@ pub fn octave_shift_up(settings: &mut SynthesizerSettings, chan: u8) {
     settings.queue_save();
 }
 
-fn program_change(
-    settings: &mut SynthesizerSettings,
-    event_queue: &mut Vec<Event>,
-    chan: u8,
-    program_no: u8,
-) -> Event {
+fn program_change(settings: &mut SynthesizerSettings, chan: u8, program_no: u8) {
     settings
         .get_or_create_keyboard_mut(chan)
         .set_program_no(program_no);
     settings.queue_save();
-    event_queue.push(Event::Noteoff(chan, 69));
-    event_queue.push(Event::Noteon(chan, 69, 100));
-    Event::ProgramChange(chan, program_no)
 }
 
 pub fn percussion(event_queue: &mut Vec<Event>, no: i32) -> Event {
@@ -93,22 +90,22 @@ pub fn percussion(event_queue: &mut Vec<Event>, no: i32) -> Event {
     }
 }
 
-fn add_on_sfx(event_queue: &mut Vec<Event>, chan: u8) {
+fn add_on_sfx(event_queue: &mut Vec<Event>, chan: u8, keyboard: &KeyboardSettings) {
     event_queue.push(Event::Noteoff(chan, 79));
-    event_queue.push(Event::Noteon(chan, 79, 100));
+    event_queue.push(noteon(chan, 79, keyboard));
     event_queue.push(Event::Noteoff(chan, 76));
-    event_queue.push(Event::Noteon(chan, 76, 100));
+    event_queue.push(noteon(chan, 76, keyboard));
     event_queue.push(Event::Noteoff(chan, 72));
-    event_queue.push(Event::Noteon(chan, 72, 100));
+    event_queue.push(noteon(chan, 72, keyboard));
 }
 
-fn add_off_sfx(event_queue: &mut Vec<Event>, chan: u8) {
+fn add_off_sfx(event_queue: &mut Vec<Event>, chan: u8, keyboard: &KeyboardSettings) {
     event_queue.push(Event::Noteoff(chan, 72));
-    event_queue.push(Event::Noteon(chan, 72, 100));
+    event_queue.push(noteon(chan, 72, keyboard));
     event_queue.push(Event::Noteoff(chan, 76));
-    event_queue.push(Event::Noteon(chan, 76, 100));
+    event_queue.push(noteon(chan, 76, keyboard));
     event_queue.push(Event::Noteoff(chan, 79));
-    event_queue.push(Event::Noteon(chan, 79, 100));
+    event_queue.push(noteon(chan, 79, keyboard));
 }
 
 fn normal_mode_action(
@@ -143,10 +140,36 @@ pub fn config_mode_action(
     // C#3
     if state.keys()[1] {
         match ev {
+            kmctrler::Event::Press(Input::Key(1)) => {
+                let keyboard = settings.get_or_create_keyboard(chan);
+                let program_no = keyboard.program_no();
+                // 2進数の各要素に分解
+                let mut notes: Vec<_> = (0..7)
+                    .filter(|i| ((program_no + 1) >> i) & 1 == 1)
+                    .map(|i| 11 - i)
+                    .flat_map(|key| {
+                        let octave = keyboard.octave();
+                        let virtual_key = key + octave * 12;
+                        [
+                            Event::Noteoff(chan, virtual_key),
+                            noteon(chan, virtual_key, keyboard),
+                        ]
+                    })
+                    .collect();
+                let first = notes.pop().unwrap();
+                event_queue.append(&mut notes);
+                return Ok(first);
+            }
             kmctrler::Event::Press(Input::Key(key)) => {
                 if (5..=11).contains(key) {
                     let program_no = key_to_program_no(state.keys());
-                    return Ok(program_change(settings, event_queue, chan, program_no));
+                    program_change(settings, chan, program_no);
+                    let keyboard = settings.get_or_create_keyboard(chan);
+                    let octave = keyboard.octave();
+                    let virtual_key = key + octave * 12;
+                    event_queue.push(Event::Noteoff(chan, virtual_key));
+                    event_queue.push(noteon(chan, virtual_key, keyboard));
+                    return Ok(Event::ProgramChange(chan, program_no));
                 }
                 if !velocity_per_program(settings, chan, *key) {
                     return Err(true);
@@ -155,21 +178,19 @@ pub fn config_mode_action(
             kmctrler::Event::Release(Input::Key(_)) => {}
             kmctrler::Event::Press(Input::WheelDown) => {
                 let current_program_no = settings.get_or_create_keyboard(chan).program_no();
-                return Ok(program_change(
-                    settings,
-                    event_queue,
-                    chan,
-                    current_program_no.checked_sub(1).unwrap_or(127),
-                ));
+                let new_program_no = current_program_no.checked_sub(1).unwrap_or(127);
+                program_change(settings, chan, new_program_no);
+                event_queue.push(Event::Noteoff(chan, 69));
+                event_queue.push(noteon(chan, 69, settings.get_or_create_keyboard(chan)));
+                return Ok(Event::ProgramChange(chan, new_program_no));
             }
             kmctrler::Event::Press(Input::WheelUp) => {
                 let current_program_no = settings.get_or_create_keyboard(chan).program_no();
-                return Ok(program_change(
-                    settings,
-                    event_queue,
-                    chan,
-                    (current_program_no as i8).checked_add(1).unwrap_or(0) as u8,
-                ));
+                let new_program_no = (current_program_no as i8).checked_add(1).unwrap_or(0) as u8;
+                program_change(settings, chan, new_program_no);
+                event_queue.push(Event::Noteoff(chan, 69));
+                event_queue.push(noteon(chan, 69, settings.get_or_create_keyboard(chan)));
+                return Ok(Event::ProgramChange(chan, new_program_no));
             }
             _ => return Err(true),
         }
@@ -182,18 +203,20 @@ pub fn config_mode_action(
     }
     match ev {
         kmctrler::Event::Press(Input::Key(13)) => {
-            if settings.get_or_create_keyboard(chan).reverb() {
-                add_off_sfx(event_queue, chan);
+            let keyboard = settings.get_or_create_keyboard(chan);
+            if keyboard.reverb() {
+                add_off_sfx(event_queue, chan, keyboard);
             } else {
-                add_on_sfx(event_queue, chan);
+                add_on_sfx(event_queue, chan, keyboard);
             }
             return Ok(toggle_reverb(settings, chan));
         }
         kmctrler::Event::Press(Input::Key(15)) => {
-            if settings.get_or_create_keyboard(chan).chorus() {
-                add_off_sfx(event_queue, chan);
+            let keyboard = settings.get_or_create_keyboard(chan);
+            if keyboard.chorus() {
+                add_off_sfx(event_queue, chan, keyboard);
             } else {
-                add_on_sfx(event_queue, chan);
+                add_on_sfx(event_queue, chan, keyboard);
             }
             return Ok(toggle_chorus(settings, chan));
         }
@@ -214,8 +237,7 @@ pub fn common_action(
             let octave = keyboard.octave();
             keydown_octave_table.entry(chan).or_default()[*key as usize] = octave;
             let virtual_key = key + octave * 12;
-            let vel = keyboard.velocity_per_program()[keyboard.program_no() as usize];
-            Some(Event::Noteon(chan, virtual_key, vel))
+            Some(noteon(chan, virtual_key, keyboard))
         }
         kmctrler::Event::Release(Input::Key(key)) => {
             let octave = keydown_octave_table.entry(chan).or_default()[*key as usize];
